@@ -1,0 +1,16 @@
+[
+{
+  "modid": "paintings",
+  "name": "Paintings",
+  "description": "Additional paintings",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/Conquest-Reforged",
+  "updateUrl": "",
+  "authorList": ["dags"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
