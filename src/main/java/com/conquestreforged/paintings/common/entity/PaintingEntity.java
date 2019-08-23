@@ -3,36 +3,47 @@ package com.conquestreforged.paintings.common.entity;
 import com.conquestreforged.paintings.common.art.Art;
 import com.conquestreforged.paintings.common.item.PaintingItem;
 import com.conquestreforged.paintings.common.network.BufHelper;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityHanging;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
+import net.minecraft.entity.EntityClassification;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.item.HangingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.IPacket;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.Direction;
+import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.fml.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 
 /**
  * @author dags <dags@dags.me>
  */
-public class PaintingEntity extends EntityHanging implements IEntityAdditionalSpawnData {
+public class PaintingEntity extends HangingEntity implements IEntityAdditionalSpawnData {
 
-    private PaintingType type;
+    public static final EntityType<PaintingEntity> TYPE = EntityType.Builder.<PaintingEntity>create(PaintingEntity::new, EntityClassification.MISC)
+            .size(0.5F, 0.5F)
+            .build("conquest:painting");
+
+    private PaintingVariant type;
     private PaintingArt art = PaintingArt.A1x1_0;
 
-    public PaintingEntity(World worldIn) {
-        super(worldIn);
+    public PaintingEntity(EntityType<PaintingEntity> type, World world) {
+        super(type, world);
     }
 
-    public PaintingType getType() {
+    public PaintingEntity(EntityType<PaintingEntity> type, World world, BlockPos pos) {
+        super(type, world, pos);
+    }
+
+    public PaintingVariant getPaintingType() {
         return type;
     }
 
@@ -40,12 +51,12 @@ public class PaintingEntity extends EntityHanging implements IEntityAdditionalSp
         return art;
     }
 
-    public void place(BlockPos pos, EnumFacing side) {
+    public void place(BlockPos pos, Direction side) {
         hangingPosition = pos;
         updateFacingWithBoundingBox(side);
     }
 
-    public void setType(PaintingType type) {
+    public void setType(PaintingVariant type) {
         this.type = type;
         if (facingDirection != null) {
             updateFacingWithBoundingBox(facingDirection);
@@ -66,18 +77,18 @@ public class PaintingEntity extends EntityHanging implements IEntityAdditionalSp
 
     @Override
     public void onBroken(@Nullable Entity brokenEntity) {
-        if (this.world.getGameRules().getBoolean("doEntityDrops")) {
+        if (this.world.getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
             this.playSound(SoundEvents.ENTITY_PAINTING_BREAK, 1.0F, 1.0F);
 
-            if (brokenEntity instanceof EntityPlayer) {
-                EntityPlayer entityplayer = (EntityPlayer) brokenEntity;
+            if (brokenEntity instanceof PlayerEntity) {
+                PlayerEntity entityplayer = (PlayerEntity) brokenEntity;
 
-                if (entityplayer.capabilities.isCreativeMode) {
+                if (entityplayer.abilities.isCreativeMode) {
                     return;
                 }
             }
 
-            ItemStack drop = PaintingItem.createStack(getType().getName(), getArt().getName());
+            ItemStack drop = PaintingItem.createStack(getPaintingType().getName(), getArt().getName());
             if (drop != ItemStack.EMPTY) {
                 this.entityDropItem(drop, 0.0F);
             }
@@ -105,49 +116,53 @@ public class PaintingEntity extends EntityHanging implements IEntityAdditionalSp
     }
 
     @Override
-    public void writeEntityToNBT(NBTTagCompound tagCompound) {
-        super.writeEntityToNBT(tagCompound);
-        tagCompound.setString(Art.TYPE_TAG, this.type.getName());
-        tagCompound.setInteger(Art.ART_TAG, this.art.index());
+    public void writeAdditional(CompoundNBT compound) {
+        super.writeAdditional(compound);
+        compound.putString(Art.TYPE_TAG, this.type.getName());
+        compound.putInt(Art.ART_TAG, this.art.index());
     }
 
     @Override
-    public void readEntityFromNBT(NBTTagCompound tagCompound) {
-        String type = tagCompound.getString(Art.TYPE_TAG);
-        int id = tagCompound.getInteger(Art.ART_TAG);
-        this.type = PaintingType.fromId(type);
+    public void readAdditional(CompoundNBT compound) {
+        String type = compound.getString(Art.TYPE_TAG);
+        int id = compound.getInt(Art.ART_TAG);
+        this.type = PaintingVariant.fromId(type);
         this.art = PaintingArt.fromId(id);
-        super.readEntityFromNBT(tagCompound);
+        super.readAdditional(compound);
     }
 
     @Override
-    public void writeSpawnData(ByteBuf buffer) {
+    public void setPositionAndRotationDirect(double x, double y, double z, float a, float b, int c, boolean d) {
+        BlockPos pos = this.hangingPosition.add(x - this.posX, y - this.posY, z - this.posZ);
+        this.setPosition((double) pos.getX(), (double) pos.getY(), (double) pos.getZ());
+    }
+
+    @Override
+    public IPacket<?> createSpawnPacket() {
+        return NetworkHooks.getEntitySpawningPacket(this);
+    }
+
+    @Override
+    public void writeSpawnData(PacketBuffer buffer) {
         buffer.writeInt(hangingPosition.getX());
         buffer.writeInt(hangingPosition.getY());
         buffer.writeInt(hangingPosition.getZ());
         buffer.writeInt(getHorizontalFacing().getIndex());
-        BufHelper.writeUTF8(getType().getName(), buffer);
+        BufHelper.writeUTF8(getPaintingType().getName(), buffer);
         BufHelper.writeUTF8(getArt().shapeId, buffer);
     }
 
     @Override
-    public void readSpawnData(ByteBuf additionalData) {
+    public void readSpawnData(PacketBuffer additionalData) {
         int x = additionalData.readInt();
         int y = additionalData.readInt();
         int z = additionalData.readInt();
         int facing = additionalData.readInt();
         String type = BufHelper.readUTF8(additionalData);
         String art = BufHelper.readUTF8(additionalData);
-        this.type = PaintingType.fromId(type);
+        this.type = PaintingVariant.fromId(type);
         this.art = PaintingArt.fromName(art);
         this.setPosition(x, y, z);
-        this.updateFacingWithBoundingBox(EnumFacing.getFront(facing));
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void setPositionAndRotationDirect(double x, double y, double z, float a, float b, int c, boolean d) {
-        BlockPos pos = this.hangingPosition.add(x - this.posX, y - this.posY, z - this.posZ);
-        this.setPosition((double) pos.getX(), (double) pos.getY(), (double) pos.getZ());
+        this.updateFacingWithBoundingBox(Direction.byHorizontalIndex(facing));
     }
 }

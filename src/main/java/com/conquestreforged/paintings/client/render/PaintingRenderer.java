@@ -2,40 +2,37 @@ package com.conquestreforged.paintings.client.render;
 
 import com.conquestreforged.paintings.common.entity.PaintingArt;
 import com.conquestreforged.paintings.common.entity.PaintingEntity;
+import com.mojang.blaze3d.platform.GLX;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.entity.Render;
-import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRendererManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
  * @author dags <dags@dags.me>
  */
-@SideOnly(Side.CLIENT)
-public class PaintingRenderer extends Render<PaintingEntity> {
+public class PaintingRenderer extends EntityRenderer<PaintingEntity> {
 
-    public PaintingRenderer(RenderManager renderManager) {
+    public PaintingRenderer(EntityRendererManager renderManager) {
         super(renderManager);
     }
 
     @Override
     public void doRender(PaintingEntity entity, double x, double y, double z, float entityYaw, float partialTicks) {
         GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, z);
-        GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
+        GlStateManager.translated(x, y, z);
+        GlStateManager.rotated(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
         GlStateManager.enableRescaleNormal();
         this.bindEntityTexture(entity);
         PaintingArt art = entity.getArt();
         float f = 0.0625F;
-        GlStateManager.scale(f, f, f);
+        GlStateManager.scalef(f, f, f);
         this.renderPainting(entity, art.sizeX, art.sizeY, art.offsetX, art.offsetY);
         GlStateManager.disableRescaleNormal();
         GlStateManager.popMatrix();
@@ -44,7 +41,7 @@ public class PaintingRenderer extends Render<PaintingEntity> {
 
     @Override
     protected ResourceLocation getEntityTexture(PaintingEntity entity) {
-        return entity.getType().getResourceLocation();
+        return entity.getPaintingType().getResourceLocation();
     }
 
     private void renderPainting(PaintingEntity painting, int width, int height, int textureU, int textureV) {
@@ -96,21 +93,21 @@ public class PaintingRenderer extends Render<PaintingEntity> {
         int i = MathHelper.floor(painting.posX);
         int j = MathHelper.floor(painting.posY + (p_77008_3_ / 16.0F));
         int k = MathHelper.floor(painting.posZ);
-        EnumFacing enumfacing = painting.facingDirection;
+        Direction enumfacing = painting.getHorizontalFacing();
 
-        if (enumfacing == EnumFacing.NORTH) {
+        if (enumfacing == Direction.NORTH) {
             i = MathHelper.floor(painting.posX + (p_77008_2_ / 16.0F));
         }
 
-        if (enumfacing == EnumFacing.WEST) {
+        if (enumfacing == Direction.WEST) {
             k = MathHelper.floor(painting.posZ - (p_77008_2_ / 16.0F));
         }
 
-        if (enumfacing == EnumFacing.SOUTH) {
+        if (enumfacing == Direction.SOUTH) {
             i = MathHelper.floor(painting.posX - (p_77008_2_ / 16.0F));
         }
 
-        if (enumfacing == EnumFacing.EAST) {
+        if (enumfacing == Direction.EAST) {
             k = MathHelper.floor(painting.posZ + (p_77008_2_ / 16.0F));
         }
 
@@ -118,7 +115,7 @@ public class PaintingRenderer extends Render<PaintingEntity> {
         int i1 = l % 65536;
         int j1 = l / 65536;
 
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) i1, (float) j1);
-        GlStateManager.color(1.0F, 1.0F, 1.0F);
+        GLX.glMultiTexCoord2f(GLX.GL_TEXTURE1, (float)i1, (float)j1);
+        GlStateManager.color3f(1.0F, 1.0F, 1.0F);
     }
 }

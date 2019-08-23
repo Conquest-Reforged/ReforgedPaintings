@@ -1,35 +1,28 @@
 package com.conquestreforged.paintings.client.gui;
 
-import com.conquestreforged.paintings.PaintingsMod;
-import com.conquestreforged.paintings.Proxy;
 import com.conquestreforged.paintings.common.art.Art;
 import com.conquestreforged.paintings.common.art.ModArt;
 import com.conquestreforged.paintings.common.art.VanillaArt;
 import com.conquestreforged.paintings.common.entity.PaintingArt;
-import com.conquestreforged.paintings.common.entity.PaintingType;
+import com.conquestreforged.paintings.common.entity.PaintingVariant;
+import com.mojang.blaze3d.platform.GlStateManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.entity.item.EntityPainting;
+import net.minecraft.client.gui.AbstractGui;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.entity.item.PaintingType;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.common.network.internal.FMLProxyPacket;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.input.Mouse;
+import net.minecraft.util.text.StringTextComponent;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
  * @author dags <dags@dags.me>
  */
-@SideOnly(Side.CLIENT)
-public class GuiPainting extends GuiScreen {
+public class GuiPainting extends Screen {
 
     private final List<Art> arts;
     private final ItemStack stack;
@@ -40,52 +33,56 @@ public class GuiPainting extends GuiScreen {
     private int artIndex;
     private int hoveredIndex = -1;
 
-    public GuiPainting(ItemStack stack, PaintingType type, PaintingArt art) {
+    public GuiPainting(ItemStack stack, PaintingVariant type, PaintingArt art) {
+        super(new StringTextComponent("Painting Selector"));
         this.stack = stack;
         this.type = type.getName();
         this.typeUnlocal = type.getUnlocalizedName();
         this.texture = type.getResourceLocation();
         this.arts = ModArt.ALL;
         this.artIndex = Art.indexOf(art, ModArt.ALL);
-        this.fontRenderer = Minecraft.getMinecraft().fontRenderer;
+        this.font = Minecraft.getInstance().fontRenderer;
     }
 
-    public GuiPainting(ItemStack stack, EntityPainting.EnumArt art) {
+    public GuiPainting(ItemStack stack, PaintingType art) {
+        super(new StringTextComponent("Painting Selector"));
         this.stack = stack;
         this.type = "Vanilla";
         this.typeUnlocal = "";
         this.arts = VanillaArt.ALL;
         this.texture = VanillaArt.location;
         this.artIndex = Art.indexOf(art, VanillaArt.ALL);
-        this.fontRenderer = Minecraft.getMinecraft().fontRenderer;
+        this.font = Minecraft.getInstance().fontRenderer;
     }
 
     @Override
-    public boolean doesGuiPauseGame() {
+    public boolean isPauseScreen() {
         return false;
     }
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        Minecraft.getMinecraft().displayGuiScreen(null);
+    public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
+        Minecraft.getInstance().displayGuiScreen(null);
+        return super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        Minecraft.getMinecraft().displayGuiScreen(null);
+    public boolean keyPressed(int typedChar, int keyCode, int what) {
+        Minecraft.getInstance().displayGuiScreen(null);
+        return super.keyPressed(typedChar, keyCode, what);
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
+    public void render(int mouseX, int mouseY, float partialTicks) {
+        renderBackground();
 
         int centerX = width / 2;
         int centerY = height / 2;
         hoveredIndex = -1;
 
-        GlStateManager.enableAlpha();
-        GlStateManager.enableTexture2D();
-        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+        GlStateManager.enableAlphaTest();
+        GlStateManager.enableTexture();
+        Minecraft.getInstance().getTextureManager().bindTexture(texture);
 
         for (int i = 5; i >= 0; i--) {
             if (i > 0) {
@@ -98,38 +95,37 @@ public class GuiPainting extends GuiScreen {
     }
 
     @Override
-    public void onGuiClosed() {
+    public void onClose() {
         int artIndex = hoveredIndex == -1 ? this.artIndex : hoveredIndex;
         String art = arts.get(artIndex).getName();
 
-        NBTTagCompound tag = new NBTTagCompound();
-        tag.setString(Art.TYPE_TAG, type);
-        tag.setString(Art.ART_TAG, art);
+        CompoundNBT tag = new CompoundNBT();
+        tag.putString(Art.TYPE_TAG, type);
+        tag.putString(Art.ART_TAG, art);
 
         PacketBuffer buffer = new PacketBuffer(Unpooled.buffer());
         buffer.writeCompoundTag(tag);
 
-        FMLProxyPacket packet = new FMLProxyPacket(buffer, Proxy.SYNC_CHANNEL);
-        PaintingsMod.getProxy().sendPacket(packet);
+//        FMLProxyPacket packet = new FMLProxyPacket(buffer, Proxy.SYNC_CHANNEL);
+//        PaintingsMod.getProxy().sendPacket(packet);
     }
 
     @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-        int i = Mouse.getDWheel();
-        if (i > 0) {
+    public boolean mouseScrolled(double mx, double my, double scroll) {
+        if (scroll > 0) {
             artIndex = artIndex - 1;
             if (artIndex < 0) {
                 artIndex = arts.size() - 1;
             }
         }
 
-        if (i < 0) {
+        if (scroll < 0) {
             artIndex = artIndex + 1;
             if (artIndex >= arts.size()) {
                 artIndex = 0;
             }
         }
+        return false;
     }
 
     private void drawArt(int mx, int my, int cx, int cy, int di) {
@@ -144,7 +140,7 @@ public class GuiPainting extends GuiScreen {
         }
 
         float scale0 = 2F - ((Math.abs(di)) / 4F);
-        int size = Math.round((this.width / 11) * scale0);
+        int size = Math.round((this.width / 11F) * scale0);
         int left = cx + 1 + (di * (size + 1)) - (size / 2);
         int top = cy - (size / 2);
 
@@ -165,17 +161,20 @@ public class GuiPainting extends GuiScreen {
         handleMouse(mx, my, tl, tt, tw, th, index);
 
         float alpha = Math.min(1F, 0.2F + Math.max(0, 1F - (Math.abs(di) / 2F)));
-        GlStateManager.color(alpha, alpha, alpha, 1F);
-        Gui.drawScaledCustomSizeModalRect(tl, tt, art.u(), art.v(), art.width(), art.height(), tw, th, art.textureWidth(), art.textureHeight());
+        GlStateManager.color4f(alpha, alpha, alpha, 1F);
+        AbstractGui.blit(tl, tt, art.u(), art.v(), art.width(), art.height(), tw, th, art.textureWidth(), art.textureHeight());
+
+//        GuiUtils.drawTexturedModalRect(tl, tt, art.u(), art.v(), art.width(), art.height(), 1F);
+//        Gui.drawScaledCustomSizeModalRect(tl, tt, art.u(), art.v(), art.width(), art.height(), tw, th, art.textureWidth(), art.textureHeight());
     }
 
     private void drawLabel(int centerX, int centerY) {
         int index = hoveredIndex != -1 ? hoveredIndex : artIndex;
         Art art = arts.get(index);
         String text = art.getDisplayName(typeUnlocal);
-        int width = fontRenderer.getStringWidth(text);
+        int width = font.getStringWidth(text);
         int height = (this.width / 11) + 10;
-        fontRenderer.drawStringWithShadow(text, centerX - (width / 2), centerY + height, 0xFFFFFF);
+        font.drawStringWithShadow(text, centerX - (width / 2), centerY + height, 0xFFFFFF);
     }
 
     private void handleMouse(int mx, int my, int l, int t, int w, int h, int index) {

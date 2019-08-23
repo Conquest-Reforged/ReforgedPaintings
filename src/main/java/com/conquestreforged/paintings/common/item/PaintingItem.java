@@ -1,19 +1,23 @@
 package com.conquestreforged.paintings.common.item;
 
-import com.conquestreforged.paintings.PaintingsMod;
+import com.conquestreforged.paintings.ReforgedPaintings;
 import com.conquestreforged.paintings.common.art.Art;
 import com.conquestreforged.paintings.common.entity.PaintingArt;
 import com.conquestreforged.paintings.common.entity.PaintingEntity;
-import com.conquestreforged.paintings.common.entity.PaintingType;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.EntityHanging;
-import net.minecraft.entity.player.EntityPlayer;
+import com.conquestreforged.paintings.common.entity.PaintingVariant;
+import net.minecraft.entity.item.HangingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.item.ItemUseContext;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.world.World;
+import net.minecraftforge.registries.ForgeRegistries;
 
 /**
  * @author dags <dags@dags.me>
@@ -21,21 +25,22 @@ import net.minecraft.world.World;
 public class PaintingItem extends Item {
 
     public PaintingItem() {
-        setUnlocalizedName("conquest_painting");
+        super(new Item.Properties());
         setRegistryName("conquest", "painting");
     }
 
     public PaintingItem(String name) {
-        setUnlocalizedName(name);
+        super(new Item.Properties());
         setRegistryName("conquest", name);
+
     }
 
     @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
+    public void fillItemGroup(ItemGroup group, NonNullList<ItemStack> items) {
         if (getClass() == PaintingItem.class) {
-            if (getCreativeTab() == tab || tab == CreativeTabs.SEARCH) {
-                PaintingType.getIds().distinct().sorted().forEach(name -> {
-                    String type = PaintingType.fromName(name).getName();
+            if (getGroup() == group || group == ItemGroup.SEARCH) {
+                PaintingVariant.getIds().distinct().sorted().forEach(name -> {
+                    String type = PaintingVariant.fromName(name).getName();
                     ItemStack stack = createStack(type, PaintingArt.A1x1_0.shapeId);
                     items.add(stack);
                 });
@@ -44,18 +49,18 @@ public class PaintingItem extends Item {
     }
 
     @Override
-    public String getItemStackDisplayName(ItemStack stack) {
-        NBTTagCompound painting = stack.getTagCompound();
+    public ITextComponent getDisplayName(ItemStack stack) {
+        CompoundNBT painting = stack.getTag();
         if (painting == null) {
-            return super.getUnlocalizedName(stack);
+            return super.getDisplayName(stack);
         }
 
-        NBTTagCompound data = painting.getCompoundTag(Art.DATA_TAG);
+        CompoundNBT data = painting.getCompound(Art.DATA_TAG);
         String typeName = data.getString(Art.TYPE_TAG);
         String artName = data.getString(Art.ART_TAG);
 
-        PaintingType type = PaintingType.fromId(typeName);
-        String displayName = getUnlocalizedName();
+        PaintingVariant type = PaintingVariant.fromId(typeName);
+        String displayName = "";//getUnlocalizedName();
 
         if (type.isPresent()) {
             // mod
@@ -69,73 +74,81 @@ public class PaintingItem extends Item {
             displayName = artName;
         }
 
-        return displayName;
+        return new StringTextComponent(displayName);
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    public ActionResult<ItemStack> onItemRightClick(World world, PlayerEntity player, Hand hand) {
         if (world.isRemote) {
             ItemStack stack = player.getHeldItemMainhand();
             String name = "";
             String artName = "";
-            NBTTagCompound data = stack.getTagCompound();
+            CompoundNBT data = stack.getTag();
             if (data != null) {
-                NBTTagCompound painting = data.getCompoundTag(Art.DATA_TAG);
+                CompoundNBT painting = data.getCompound(Art.DATA_TAG);
                 name = painting.getString(Art.TYPE_TAG);
                 artName = painting.getString(Art.ART_TAG);
             }
-            PaintingsMod.getProxy().handlePaintingUse(stack, name, artName);
+            ReforgedPaintings.getProxy().handlePaintingUse(stack, name, artName);
         }
         return super.onItemRightClick(world, player, hand);
     }
 
     @Override
-    public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
+    public ActionResultType onItemUse(ItemUseContext context) {
+        PlayerEntity player = context.getPlayer();
+        if (player == null) {
+            return ActionResultType.FAIL;
+        }
+
+        World world = context.getWorld();
+        Hand hand = context.getHand();
+        Direction side = context.getFace();
         if (player.isSneaking()) {
             onItemRightClick(world, player, hand);
-            return EnumActionResult.FAIL;
+            return ActionResultType.FAIL;
         }
 
         ItemStack stack = player.getHeldItem(hand);
-        NBTTagCompound data = stack.getTagCompound();
+        CompoundNBT data = stack.getTag();
         if (data == null) {
-            return EnumActionResult.FAIL;
+            return ActionResultType.FAIL;
         }
 
-        NBTTagCompound paint = data.getCompoundTag(Art.DATA_TAG);
+        CompoundNBT paint = data.getCompound(Art.DATA_TAG);
         String paintType = paint.getString(Art.TYPE_TAG);
         String paintArt = paint.getString(Art.ART_TAG);
         if (paintType.isEmpty() || paintArt.isEmpty()) {
-            return EnumActionResult.FAIL;
+            return ActionResultType.FAIL;
         }
 
-        if (side != EnumFacing.DOWN && side != EnumFacing.UP) {
-            pos = pos.offset(side);
+        if (side != Direction.DOWN && side != Direction.UP) {
+            BlockPos pos = context.getPos().offset(side);
 
-            EntityHanging painting = createEntity(world, pos, side, paintType, paintArt);
+            HangingEntity painting = createEntity(world, pos, side, paintType, paintArt);
             if (painting == null) {
-                return EnumActionResult.FAIL;
+                return ActionResultType.FAIL;
             }
 
             if (!world.isRemote) {
-                world.spawnEntity(painting);
+                world.addEntity(painting);
                 painting.playPlaceSound();
             }
 
             stack.shrink(1);
 
-            return EnumActionResult.SUCCESS;
+            return ActionResultType.SUCCESS;
         }
-        return EnumActionResult.FAIL;
+        return ActionResultType.FAIL;
     }
 
-    protected EntityHanging createEntity(World world, BlockPos pos, EnumFacing side, String paintType, String paintArt) {
-        PaintingType type = PaintingType.fromName(paintType);
+    protected HangingEntity createEntity(World world, BlockPos pos, Direction side, String paintType, String paintArt) {
+        PaintingVariant type = PaintingVariant.fromName(paintType);
         PaintingArt art = PaintingArt.fromName(paintArt);
         if (!type.isPresent() || art == null) {
             return null;
         }
-        PaintingEntity painting = new PaintingEntity(world);
+        PaintingEntity painting = new PaintingEntity(PaintingEntity.TYPE, world);
         painting.setType(type);
         painting.setArt(art);
         painting.place(pos, side);
@@ -146,24 +159,24 @@ public class PaintingItem extends Item {
         Item item;
 
         if (type.equalsIgnoreCase("Vanilla")) {
-            item = Item.getByNameOrId("conquest:vanilla_painting");
+            item = ForgeRegistries.ITEMS.getValue(new ResourceLocation("conquest:vanilla_painting"));
         } else {
-            item = Item.getByNameOrId("conquest:painting");
+            item = ForgeRegistries.ITEMS.getValue(new ResourceLocation("conquest:painting"));
         }
 
         if (item == null) {
             return ItemStack.EMPTY;
         }
 
-        NBTTagCompound painting = new NBTTagCompound();
-        painting.setString(Art.TYPE_TAG, type);
-        painting.setString(Art.ART_TAG, art);
+        CompoundNBT painting = new CompoundNBT();
+        painting.putString(Art.TYPE_TAG, type);
+        painting.putString(Art.ART_TAG, art);
 
-        NBTTagCompound data = new NBTTagCompound();
-        data.setTag(Art.DATA_TAG, painting);
+        CompoundNBT data = new CompoundNBT();
+        data.put(Art.DATA_TAG, painting);
 
         ItemStack stack = new ItemStack(item, 1);
-        stack.setTagCompound(data);
+        stack.setTag(data);
 
         return stack;
     }

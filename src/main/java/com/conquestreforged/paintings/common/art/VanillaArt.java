@@ -1,9 +1,9 @@
 package com.conquestreforged.paintings.common.art;
 
-import com.google.common.collect.ImmutableList;
-import net.minecraft.entity.item.EntityPainting;
+import net.minecraft.entity.item.PaintingType;
 import net.minecraft.util.ResourceLocation;
 
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -12,42 +12,42 @@ import java.util.List;
 public class VanillaArt implements Art {
 
     public static final ResourceLocation location = new ResourceLocation("textures/painting/paintings_kristoffer_zetterstrand.png");
-    public static final List<Art> ALL;
+    public static final List<Art> ALL = new LinkedList<>();
 
-    private final EntityPainting.EnumArt art;
+    private final PaintingType art;
 
-    public VanillaArt(EntityPainting.EnumArt art) {
+    public VanillaArt(PaintingType art) {
         this.art = art;
     }
 
     @Override
     public int u() {
-        return art.offsetX;
+        return 0;
     }
 
     @Override
     public int v() {
-        return art.offsetY;
+        return 0;
     }
 
     @Override
     public int width() {
-        return art.sizeX;
+        return art.getWidth();
     }
 
     @Override
     public int height() {
-        return art.sizeY;
+        return art.getHeight();
     }
 
     @Override
     public int textureWidth() {
-        return 256;
+        return art.getWidth();
     }
 
     @Override
     public int textureHeight() {
-        return 256;
+        return art.getHeight();
     }
 
     @Override
@@ -57,20 +57,15 @@ public class VanillaArt implements Art {
 
     @Override
     public String getDisplayName(String parent) {
-        return art.title;
+        return art.toString();
     }
 
     @Override
-    public boolean matches(Enum art) {
+    public boolean matches(Object art) {
         return art == this.art;
     }
 
     static {
-        EntityPainting.EnumArt[] arts = EntityPainting.EnumArt.values();
-        ImmutableList.Builder<Art> builder = ImmutableList.builder();
-        for (EntityPainting.EnumArt art : arts) {
-            builder.add(new VanillaArt(art));
-        }
-        ALL = builder.build();
+
     }
 }

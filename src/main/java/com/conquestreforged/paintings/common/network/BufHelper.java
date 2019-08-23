@@ -2,7 +2,7 @@ package com.conquestreforged.paintings.common.network;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.network.PacketBuffer;
 
 import java.io.ByteArrayOutputStream;
@@ -29,8 +29,7 @@ public class BufHelper {
 
     public static void writeItem(ItemStack stack, PacketBuffer buffer) {
         DataOutputStream out = new DataOutputStream(new ByteArrayOutputStream());
-        NBTTagCompound compound = new NBTTagCompound();
-        stack.writeToNBT(compound);
-
+        CompoundNBT compound = new CompoundNBT();
+        stack.write(compound);
     }
 }

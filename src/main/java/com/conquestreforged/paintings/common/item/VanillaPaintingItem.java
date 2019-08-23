@@ -1,9 +1,12 @@
 package com.conquestreforged.paintings.common.item;
 
-import net.minecraft.entity.EntityHanging;
-import net.minecraft.entity.item.EntityPainting;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.item.HangingEntity;
+import net.minecraft.entity.item.PaintingEntity;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
 
 /**
@@ -16,11 +19,11 @@ public class VanillaPaintingItem extends PaintingItem {
     }
 
     @Override
-    protected EntityHanging createEntity(World world, BlockPos pos, EnumFacing side, String paintType, String paintArt) {
-        return new EntityPainting(world) {{
+    protected HangingEntity createEntity(World world, BlockPos pos, Direction side, String paintType, String paintArt) {
+        return new PaintingEntity(EntityType.PAINTING, world) {{
             hangingPosition = pos;
             facingDirection = side;
-            art = EnumArt.valueOf(paintArt);
+            art = Registry.MOTIVE.getOrDefault(new ResourceLocation(paintArt));
             updateFacingWithBoundingBox(side);
         }};
     }

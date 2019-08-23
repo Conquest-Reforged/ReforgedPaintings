@@ -9,15 +9,15 @@ import java.util.stream.Stream;
 /**
  * @author dags <dags@dags.me>
  */
-public class PaintingType implements Translateable {
+public class PaintingVariant implements Translateable {
 
-    private static final PaintingType UNKNOWN = new PaintingType("unknown");
-    private static final Map<String, PaintingType> types = new ConcurrentHashMap<>();
+    private static final PaintingVariant UNKNOWN = new PaintingVariant("unknown");
+    private static final Map<String, PaintingVariant> types = new ConcurrentHashMap<>();
 
     private final String name;
     private final ResourceLocation location;
 
-    private PaintingType(String name) {
+    private PaintingVariant(String name) {
         this.name = name;
         this.location = new ResourceLocation("conquest", "textures/paintings/" + name + ".png");
     }
@@ -45,19 +45,19 @@ public class PaintingType implements Translateable {
         return location;
     }
 
-    public static PaintingType fromId(String id) {
+    public static PaintingVariant fromId(String id) {
         if (id == null) {
             return UNKNOWN;
         }
         return types.getOrDefault(id, UNKNOWN);
     }
 
-    public static PaintingType fromName(String name) {
-        PaintingType type = fromId(name);
+    public static PaintingVariant fromName(String name) {
+        PaintingVariant type = fromId(name);
         if (type != UNKNOWN) { return type;
         }
 
-        for (PaintingType t : types.values()) {
+        for (PaintingVariant t : types.values()) {
             if (name.equalsIgnoreCase(t.getName())) {
                 return t;
             }
@@ -70,10 +70,10 @@ public class PaintingType implements Translateable {
     }
 
     public static void register(String id) {
-        types.put(id, new PaintingType(id));
+        types.put(id, new PaintingVariant(id));
     }
 
     public static Stream<String> getIds() {
-        return types.values().stream().map(PaintingType::getName);
+        return types.values().stream().map(PaintingVariant::getName);
     }
 }

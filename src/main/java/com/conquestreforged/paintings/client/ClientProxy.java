@@ -1,94 +1,89 @@
 package com.conquestreforged.paintings.client;
 
+import com.conquestreforged.core.util.RegUtil;
 import com.conquestreforged.paintings.client.gui.GuiPainting;
 import com.conquestreforged.paintings.client.render.PaintingRenderer;
 import com.conquestreforged.paintings.common.CommonProxy;
 import com.conquestreforged.paintings.common.art.Art;
 import com.conquestreforged.paintings.common.entity.PaintingArt;
 import com.conquestreforged.paintings.common.entity.PaintingEntity;
-import com.conquestreforged.paintings.common.entity.PaintingType;
+import com.conquestreforged.paintings.common.entity.PaintingVariant;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.entity.item.EntityPainting;
+import net.minecraft.client.renderer.model.ModelResourceLocation;
+import net.minecraft.entity.item.PaintingType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.registry.Registry;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
-import net.minecraftforge.fml.common.event.FMLInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.network.internal.FMLProxyPacket;
-import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 
 /**
  * @author dags <dags@dags.me>
  */
+@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ClientProxy extends CommonProxy {
 
     @Override
-    public void preInit(FMLPreInitializationEvent e) {
-        super.preInit(e);
-        RenderingRegistry.registerEntityRenderingHandler(PaintingEntity.class, PaintingRenderer::new);
-    }
-
-    @Override
-    public void init(FMLInitializationEvent e) {
-        registerModel(paintingItem, "conquest:painting");
-        registerModel(vanillaPainting, "minecraft:painting");
-    }
-
-    @Override
-    public void sendPacket(FMLProxyPacket packet) {
-        getEventChannel().sendToServer(packet);
-    }
-
-    @Override
     public void handlePaintingUse(ItemStack stack, String name, String artName) {
-        if (stack.getItem() == Item.getByNameOrId("conquest:vanilla_painting")) {
+        if (stack.getItem() == ForgeRegistries.ITEMS.getValue(new ResourceLocation("conquest:vanilla_painting"))) {
             if (artName.isEmpty()) {
-                artName = EntityPainting.EnumArt.ALBAN.toString();
+                artName = PaintingType.ALBAN.toString();
             }
-            GuiPainting gui = new GuiPainting(stack, EntityPainting.EnumArt.valueOf(artName));
-            Minecraft.getMinecraft().displayGuiScreen(gui);
+            GuiPainting gui = new GuiPainting(stack, RegUtil.art(artName));
+            Minecraft.getInstance().displayGuiScreen(gui);
         } else {
-            PaintingType type = PaintingType.fromId(name);
+            PaintingVariant type = PaintingVariant.fromId(name);
             PaintingArt art = PaintingArt.fromName(artName);
             if (!type.isPresent() || art == null) {
                 return;
             }
 
             GuiPainting gui = new GuiPainting(stack, type, art);
-            Minecraft.getMinecraft().displayGuiScreen(gui);
+            Minecraft.getInstance().displayGuiScreen(gui);
         }
     }
 
     @SubscribeEvent
-    public void onRightClick(PlayerInteractEvent.RightClickItem e) {
-        if (e.getSide() != Side.CLIENT) {
+    public static void registerRenders(FMLClientSetupEvent event) {
+        RenderingRegistry.registerEntityRenderingHandler(PaintingEntity.class, PaintingRenderer::new);
+        registerModel(paintingItem, "conquest:painting");
+        registerModel(vanillaPainting, "minecraft:painting");
+    }
+
+    @SubscribeEvent
+    public static void onRightClick(PlayerInteractEvent.RightClickItem e) {
+        if (e.getSide() != LogicalSide.CLIENT) {
             return;
         }
 
         ItemStack stack = e.getItemStack();
         String artName = "";
 
-        NBTTagCompound data = stack.getTagCompound();
+        CompoundNBT data = stack.getTag();
         if (data != null) {
-            NBTTagCompound painting = data.getCompoundTag(Art.DATA_TAG);
+            CompoundNBT painting = data.getCompound(Art.DATA_TAG);
             artName = painting.getString(Art.ART_TAG);
         }
 
-        if (stack.getItem() == Item.getByNameOrId("minecraft:painting")) {
+        if (stack.getItem() == Items.PAINTING) {
             if (artName.isEmpty()) {
-                artName = EntityPainting.EnumArt.ALBAN.toString();
+                artName = PaintingType.ALBAN.toString();
             }
-            GuiPainting gui = new GuiPainting(stack, EntityPainting.EnumArt.valueOf(artName));
-            Minecraft.getMinecraft().displayGuiScreen(gui);
+            GuiPainting gui = new GuiPainting(stack, Registry.MOTIVE.getOrDefault(new ResourceLocation(artName)));
+            Minecraft.getInstance().displayGuiScreen(gui);
         }
     }
 
     private static void registerModel(Item item, String id) {
         ModelResourceLocation modelLocation = new ModelResourceLocation(id, "inventory");
-        Minecraft.getMinecraft().getRenderItem().getItemModelMesher().register(item, 0, modelLocation);
+        Minecraft.getInstance().getItemRenderer().getItemModelMesher().register(item, modelLocation);
     }
 }

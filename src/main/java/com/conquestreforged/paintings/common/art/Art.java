@@ -27,9 +27,9 @@ public interface Art {
 
     String getDisplayName(String parent);
 
-    boolean matches(Enum art);
+    boolean matches(Object art);
 
-    static int indexOf(Enum art, List<Art> list) {
+    static int indexOf(Object art, List<Art> list) {
         for (int i = 0; i < list.size(); i++) {
             Art a = list.get(i);
             if (a.matches(art)) {
